@@ -40,13 +40,16 @@ const RegisterScreen = () => {
 
   const { phone }: any = useLocalSearchParams();
   const [isBottomSheetOpen, setBottomSheetOpen] = useState(false);
+  const [isImageSourceSheetOpen, setImageSourceSheetOpen] = useState(false); // New state for image source bottom sheet
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<any>({});
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null); // For gender selection
+  const imageSourceSheetRef = useRef<BottomSheetModal>(null); // For image source selection
   const snapPoints = useMemo(() => ["25%"], []);
+  const imageSourceSnapPoints = useMemo(() => ["30%"], []); // Snap points for image source sheet
   const setUser = useAppStore((state) => state.setUser);
 
   React.useEffect(() => {
@@ -66,6 +69,18 @@ const RegisterScreen = () => {
   const handleCloseModal = useCallback(() => {
     bottomSheetModalRef.current?.close();
     setBottomSheetOpen(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  const handlePresentImageSourceModal = useCallback(() => {
+    imageSourceSheetRef.current?.present();
+    setImageSourceSheetOpen(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  const handleCloseImageSourceModal = useCallback(() => {
+    imageSourceSheetRef.current?.close();
+    setImageSourceSheetOpen(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
@@ -102,7 +117,7 @@ const RegisterScreen = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const pickImage = async () => {
+  const pickImageFromGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -115,6 +130,31 @@ const RegisterScreen = () => {
       setErrors((prev: any) => ({ ...prev, profilePicture: undefined }));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+    handleCloseImageSourceModal();
+  };
+
+  const snapImageWithCamera = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      setErrors((prev: any) => ({
+        ...prev,
+        profilePicture: "Camera permission is required to take a photo",
+      }));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setProfilePicture(result.assets[0].uri);
+      setErrors((prev: any) => ({ ...prev, profilePicture: undefined }));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    handleCloseImageSourceModal();
   };
 
   const handleContinue = async () => {
@@ -264,7 +304,7 @@ const RegisterScreen = () => {
               Profile Picture
             </CustomText>
             <TouchableOpacity
-              onPress={pickImage}
+              onPress={handlePresentImageSourceModal}
               style={[
                 styles.imagePicker,
                 errors.profilePicture && styles.imagePickerError,
@@ -278,7 +318,7 @@ const RegisterScreen = () => {
                 />
               ) : (
                 <CustomText fontWeight="Medium" style={styles.imagePlaceholder}>
-                  Tap to select profile picture
+                  Tap to select or take a profile picture
                 </CustomText>
               )}
             </TouchableOpacity>
@@ -321,7 +361,12 @@ const RegisterScreen = () => {
 
   return (
     <>
-      <TouchableWithoutFeedback onPress={handleCloseModal}>
+      <TouchableWithoutFeedback
+        onPress={() => {
+          handleCloseModal();
+          handleCloseImageSourceModal();
+        }}
+      >
         <View style={styles.container}>
           <KeyboardAwareScrollView
             enableOnAndroid
@@ -364,6 +409,7 @@ const RegisterScreen = () => {
         </View>
       </TouchableWithoutFeedback>
       <BottomSheetModalProvider>
+        {/* Gender Selection Bottom Sheet */}
         <BottomSheetModal
           ref={bottomSheetModalRef}
           snapPoints={snapPoints}
@@ -406,6 +452,56 @@ const RegisterScreen = () => {
             >
               <CustomText fontWeight="Medium" style={styles.sheetText}>
                 Female
+              </CustomText>
+            </TouchableOpacity>
+          </View>
+        </BottomSheetModal>
+        {/* Image Source Selection Bottom Sheet */}
+        <BottomSheetModal
+          ref={imageSourceSheetRef}
+          snapPoints={imageSourceSnapPoints}
+          enableDynamicSizing={false}
+          onDismiss={handleCloseImageSourceModal}
+          handleIndicatorStyle={{ backgroundColor: "#E2E2E2" }}
+          backgroundStyle={{
+            backgroundColor: "white",
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+          }}
+          style={{
+            shadowColor: "#000",
+            shadowOffset: { width: 10, height: 10 },
+            shadowOpacity: 0.35,
+            shadowRadius: 10,
+            elevation: 10,
+          }}
+        >
+          <View style={styles.sheetContent}>
+            <TouchableOpacity
+              onPress={pickImageFromGallery}
+              style={styles.sheetOption}
+              accessible
+            >
+              <CustomText fontWeight="Medium" style={styles.sheetText}>
+                Choose from Gallery
+              </CustomText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={snapImageWithCamera}
+              style={styles.sheetOption}
+              accessible
+            >
+              <CustomText fontWeight="Medium" style={styles.sheetText}>
+                Take a Photo
+              </CustomText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleCloseImageSourceModal}
+              style={styles.sheetOption}
+              accessible
+            >
+              <CustomText fontWeight="Medium" style={styles.sheetText}>
+                Cancel
               </CustomText>
             </TouchableOpacity>
           </View>
