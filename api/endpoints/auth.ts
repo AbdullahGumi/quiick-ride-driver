@@ -17,6 +17,7 @@ export const authApi = {
     phone: string;
     role: string;
     nin: string;
+    pin: string;
     profilePicture: string
   }) => {
     return await apiService.post("/auth/register", data);
