@@ -12,6 +12,7 @@ import { CONSTANTS } from "@/constants/constants";
 import { scale, scaleText } from "@/constants/Layout";
 import { useAppStore } from "@/stores/useAppStore";
 import { Storage } from "@/utility/asyncStorageHelper";
+import { Cloudinary } from "@cloudinary/url-gen"; // Import Cloudinary SDK
 import {
   BottomSheetModal,
   BottomSheetModalProvider,
@@ -71,6 +72,13 @@ const RegisterScreen = () => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const imageSourceSheetRef = useRef<BottomSheetModal>(null);
   const setUser = useAppStore((state) => state.setUser);
+
+  // Cloudinary configuration
+  const cld = new Cloudinary({
+    cloud: {
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME, // Set in .env
+    },
+  });
 
   // Memoized snap points
   const snapPoints = useMemo(() => ["25%"], []);
@@ -206,7 +214,39 @@ const RegisterScreen = () => {
     handleCloseImageSourceModal();
   }, [updateFormState, handleCloseImageSourceModal]);
 
-  // Continue handler
+  // Cloudinary upload function
+  const uploadImageToCloudinary = useCallback(async (imageUri: string) => {
+    try {
+      const data: any = new FormData();
+      data.append("file", {
+        uri: imageUri,
+        type: "image/jpeg", // Adjust based on your image type
+        name: `profile_${Date.now()}.jpg`,
+      });
+      data.append("upload_preset", "quiick-ride-upload"); // Set in .env
+      data.append("cloud_name", "dob19lapx");
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${"dob19lapx"}/image/upload`,
+        {
+          method: "POST",
+          body: data,
+        }
+      );
+
+      const result = await response.json();
+      if (result.secure_url) {
+        return result.secure_url;
+      } else {
+        throw new Error("Failed to upload image to Cloudinary");
+      }
+    } catch (error) {
+      console.error("Cloudinary upload error:", error);
+      throw error;
+    }
+  }, []);
+
+  // Continue handler with Cloudinary upload
   const handleContinue = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     const validations = [
@@ -230,6 +270,13 @@ const RegisterScreen = () => {
             vehicleNumber,
             plateNumber,
           } = formState;
+
+          // Upload profile picture to Cloudinary
+          let profilePictureUrl = profilePicture;
+          if (profilePicture) {
+            profilePictureUrl = await uploadImageToCloudinary(profilePicture);
+          }
+
           const { data } = await authApi.register({
             email,
             name: `${firstName} ${lastName}`,
@@ -238,13 +285,17 @@ const RegisterScreen = () => {
             role: CONSTANTS.USER_ROLE,
             nin,
             pin,
-            profilePicture,
+            profilePicture: profilePictureUrl, // Use Cloudinary URL
           });
 
           if (data.token) {
-            setUser(data.user);
+            setUser(data.user, data.token);
             await Storage.set("access_token", data.token);
-            await driverApi.addVehicle({ plateNumber, vehicleNumber });
+            const vehicleResponse = await driverApi.addVehicle({
+              plateNumber,
+              vehicleNumber,
+            });
+            console.log("vehicle-->", vehicleResponse.data);
             router.push("/(tabs)");
           }
         } catch (err: any) {
@@ -262,7 +313,7 @@ const RegisterScreen = () => {
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
-  }, [step, formState, phone, setUser, router]);
+  }, [step, formState, phone, setUser, router, uploadImageToCloudinary]);
 
   // Back handler
   const handleBack = useCallback(() => {

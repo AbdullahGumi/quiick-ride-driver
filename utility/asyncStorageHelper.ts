@@ -1,4 +1,3 @@
-// storage/asyncStorageHelper.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type StoredItem<T> = {

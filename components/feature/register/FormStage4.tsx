@@ -14,6 +14,7 @@ const FormStage4 = ({
   return (
     <Animated.View style={{ opacity: fadeAnim }}>
       <CustomInput
+        autoCapitalize="characters"
         placeholder="Enter vehicle number"
         placeholderTextColor={COLORS.secondaryText}
         label="Vehicle Number"
@@ -21,9 +22,11 @@ const FormStage4 = ({
         onChangeText={(text) => updateFormState("vehicleNumber", text)}
         error={errors.vehicleNumber}
         required
+        keyboardType="default"
         containerStyle={styles.inputContainer}
       />
       <CustomInput
+        autoCapitalize="characters"
         placeholder="Enter plate number"
         placeholderTextColor={COLORS.secondaryText}
         label="Plate Number"
@@ -31,6 +34,7 @@ const FormStage4 = ({
         onChangeText={(text) => updateFormState("plateNumber", text)}
         error={errors.plateNumber}
         required
+        keyboardType="default"
         containerStyle={styles.inputContainer}
       />
     </Animated.View>
